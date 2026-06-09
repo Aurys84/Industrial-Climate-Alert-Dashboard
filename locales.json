@@ -1,0 +1,44 @@
+{
+  "window_title": "Industrial Heat & Cold Alert Dashboard v1 // Evolúció",
+  "email_section_title": "📩 E-mail címek / Email addresses / E-Mail-Adressen (Outlook & Gmail)",
+  "limits_section_title": "⚙️ Határértékek / Limits / Grenzwerte",
+  "matrix_section_title": "📊 24 órás Mátrix / 24-hour Data Entry",
+  "analytics_section_title": "📈 LinkedIn-Style Analytics Dashboard",
+  "min_limit_label": {
+    "hu": "Minimum: Riasztási Beírt érték",
+    "en": "Minimum: Alarm Entered Value",
+    "de": "Minimalwert: Alarmwert"
+  },
+  "max_limit_label": {
+    "hu": "Maximum: Riasztási Beírt érték",
+    "en": "Maximum: Alarm Entered value",
+    "de": "Maximalwert: Alarmwert eingegeben"
+  },
+  "date_label": {
+    "hu": "Dátum",
+    "en": "Date",
+    "de": "Datum"
+  },
+  "time_column": {
+    "hu": "Időpont óra/perc",
+    "en": "Time hour/minute",
+    "de": "Uhrzeit Stunde/Minute"
+  },
+  "value_column": {
+    "hu": "Mért érték",
+    "en": "Measured value",
+    "de": "Messwert"
+  },
+  "monthly_dropdown_label": {
+    "hu": "Havi átlaghőmérséklet legördülő szövegdoboz",
+    "en": "Monthly average temperature dropdown box",
+    "de": "Monatliche Durchschnittstemperatur Dropdown-Box"
+  },
+  "save_button": {
+    "hu": "💾 Adatok mentése és Ellenőrzés",
+    "en": "💾 Save & Check Data",
+    "de": "💾 Daten speichern & Prüfen"
+  },
+  "status_ok": "🟢 MINDEN OKÉ / STATUS OK / ALLES REGLER",
+  "status_alert": "🔴 RIASZTÁS AKTÍV / ALERT ACTIVE / ALARM AKTIV"
+}
