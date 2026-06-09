@@ -1,0 +1,14 @@
+{
+  "max_alert": {
+    "subject": "🚨 INDUSTRIAL HEAT ALERT / HŐSÉGRIADÓ / WARNUNG",
+    "body_hu": "Figyelem! A hőfok elérte a riasztási maximum értéket, a riasztás visszavonásig érvényes.",
+    "body_en": "Warning: the temperature has reached the alarm maximum value, the alarm is valid until canceled.",
+    "body_de": "Warnung: Die Temperatur hat den maximalen Alarmwert erreicht. Der Alarm bleibt bis zur Deaktivierung aktiv."
+  },
+  "min_alert": {
+    "subject": "❄️ INDUSTRIAL COLD ALERT / MINIMUM RIASZTÁS / WARNUNG",
+    "body_hu": "Figyelem! A hőfok elérte a riasztási minimum értéket, a riasztás visszavonásig érvényes.",
+    "body_en": "Warning: the temperature has reached the alarm minimum value, the alarm is valid until cancelled.",
+    "body_de": "Warnung: Die Temperatur hat den Alarmminimumwert erreicht. Der Alarm bleibt bis zur Deaktivierung aktiv."
+  }
+}
