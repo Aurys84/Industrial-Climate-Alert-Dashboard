@@ -1,35 +1,14 @@
 <!DOCTYPE html>
-<html lang="hu">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-<title>Industrial Climate Alert Dashboard v2.0</title>
-<style>
-* { box-sizing: border-box; }
-body {
-  font-family: 'Segoe UI', Arial, sans-serif;
-  background: #1e1e2f;
-  color: #fff;
-  margin: 0;
-  padding: 12px;
-}
-h2 { 
-  text-align: center; 
-  color: #ffb347; 
-  margin: 0 0 15px 0;
-  font-size: 20px;
-}
-.controls {
-  display: flex;
-  gap: 10px;
-  flex-wrap: wrap;
-  margin-bottom: 15px;
-  justify-content: center;
-}
-button {
-  padding: 12px 18px;
-  border: none;
-  border-radius: 8px;
-  font-size: 16px;
-  background: #ffb347;
-  color: #
+<html lang="hu"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Dashboard</title>
+<style>body{background:#1e1e2f;color:#fff;font-family:Arial;padding:10px}table{border-collapse:collapse;min-width:1300px}th,td{border:1px solid #444;padding:6px}th{background:#333;position:sticky;top:0}.zone-label{background:#2a2a3f;position:sticky;left:0}input{width:50px;background:#2a2a3f;color:#fff;border:1px solid #555;text-align:center}.hot{background:red}.table-wrapper{overflow-x:auto;border:2px solid #ffb347;border-radius:8px}button{background:#ffb347;color:#1e1e2f;border:none;padding:10px;border-radius:6px;font-weight:bold}</style>
+</head><body>
+<h2 style="color:#ffb347;text-align:center">Industrial Climate Alert Dashboard v2.0</h2>
+<button onclick="unit=unit=='C'?'F':'C';document.getElementById('u').innerText=unit;render()">C/F</button>
+<button id="u">C</button>
+<button onclick="localStorage.clear();location.reload()">Törlés</button>
+<div class="table-wrapper"><table><thead><tr id="h"></tr></thead><tbody id="b"></tbody></table></div>
+<div id="s" style="margin-top:15px;padding:10px;background:#2a2a3f;border-radius:8px"></div>
+<script>
+let unit='C',m=JSON.parse(localStorage.m||'{}');
+function render(){let h='<th class="zone-label">Zóna</th>';for(let i=0;i<24;i++)h+=`<th>${i}:00 ${unit}</th>`;document.getElementById('h').innerHTML=h;let b='';for(let z=1;z<=5;z++){b+=`<tr><td class="zone-label">Zóna ${z}</td>`;for(let i=0;i<24;i++){let v=m[z]?.[i]||'',n=parseFloat(v),c=(n>40&&unit=='C')||(n>104&&unit=='F')?'hot':'';b+=`<td><input value="${v}" onchange="m[${z}]=m[${z}]||{};m[${z}][${i}]=this.value;localStorage.m=JSON.stringify(m);this.className='${c}'" class="${c}"></td>`}b+='</tr>'}document.getElementById('b').innerHTML=b;let s='<h3 style="color:#ffb347">Statisztika</h3>';for(let z=1;z<=5;z++){let v=Object.values(m[z]||{}).map(Number).filter(x=>!isNaN(x));s+=v.length?`<p><b>Zóna ${z}:</b> Max ${Math.max(...v).toFixed(1)}°${unit} | Min ${Math.min(...v).toFixed(1)}°${unit} | Átlag ${(v.reduce((a,b)=>a+b,0)/v.length).toFixed(1)}°${unit}</p>`:`<p><b>Zóna ${z}:</b> Nincs adat</p>`}document.getElementById('s').innerHTML=s}render();
+</script></body></html>
