@@ -2,17 +2,23 @@
 <html lang="hu">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
 <title>Industrial Climate Alert Dashboard v2.0</title>
 <style>
+* { box-sizing: border-box; }
 body {
-  font-family: Arial, sans-serif;
+  font-family: 'Segoe UI', Arial, sans-serif;
   background: #1e1e2f;
   color: #fff;
   margin: 0;
-  padding: 10px;
+  padding: 12px;
 }
-h2 { text-align: center; color: #ffb347; margin-bottom: 15px; }
+h2 { 
+  text-align: center; 
+  color: #ffb347; 
+  margin: 0 0 15px 0;
+  font-size: 20px;
+}
 .controls {
   display: flex;
   gap: 10px;
@@ -21,158 +27,9 @@ h2 { text-align: center; color: #ffb347; margin-bottom: 15px; }
   justify-content: center;
 }
 button {
-  padding: 10px 15px;
+  padding: 12px 18px;
   border: none;
   border-radius: 8px;
   font-size: 16px;
   background: #ffb347;
-  color: #1e1e2f;
-  font-weight: bold;
-  cursor: pointer;
-}
-button:hover { background: #ffa500; }
-.table-wrapper {
-  overflow-x: auto;
-  border: 2px solid #ffb347;
-  border-radius: 10px;
-}
-table {
-  border-collapse: collapse;
-  min-width: 1300px;
-}
-th, td {
-  border: 1px solid #444;
-  padding: 8px;
-  text-align: center;
-  min-width: 55px;
-}
-th {
-  background: #333;
-  position: sticky;
-  top: 0;
-  z-index: 2;
-}
-.zone-label {
-  background: #2a2a3f;
-  font-weight: bold;
-  position: sticky;
-  left: 0;
-  z-index: 1;
-}
-input {
-  width: 50px;
-  background: #2a2a3f;
-  color: #fff;
-  border: 1px solid #555;
-  border-radius: 4px;
-  text-align: center;
-  font-size: 14px;
-}
-.hot { background: #ff4444!important; color: #fff; }
-.stats {
-  margin-top: 20px;
-  padding: 15px;
-  background: #2a2a3f;
-  border-radius: 10px;
-  border: 1px solid #ffb347;
-}
-.stats h3 { color: #ffb347; margin-top: 0; }
-</style>
-</head>
-<body>
-  <h2>Industrial Climate Alert Dashboard v2.0</h2>
-
-  <div class="controls">
-    <button id="unitBtn" onclick="switchUnit()">C</button>
-    <button onclick="deleteDay()">Nap törlése</button>
-  </div>
-
-  <div class="table-wrapper">
-    <table>
-      <thead>
-        <tr id="thead-row">
-          <th class="zone-label">Zóna</th>
-        </tr>
-      </thead>
-      <tbody id="tbody"></tbody>
-    </table>
-  </div>
-
-  <div class="stats" id="stats"></div>
-
-<script>
-let unit = 'C';
-let matrix = {};
-const zones = 5;
-const hours = 24;
-
-function init() {
-  load();
-  renderHeader();
-  render();
-}
-
-function renderHeader() {
-  const row = document.getElementById('thead-row');
-  row.innerHTML = '<th class="zone-label">Zóna</th>';
-  for(let i=0; i<hours; i++) {
-    row.innerHTML += `<th>${i}:00 ${unit}</th>`;
-  }
-}
-
-function render() {
-  const tbody = document.getElementById('tbody');
-  tbody.innerHTML = '';
-  for (let z = 1; z <= zones; z++) {
-    let row = `<tr><td class="zone-label">Zóna ${z}</td>`;
-    for (let h = 0; h < hours; h++) {
-      let val = matrix[z]?.[h]?? '';
-      let num = parseFloat(val);
-      let cls = (num > 40 && unit==='C') || (num > 104 && unit==='F')? 'hot' : '';
-      row += `<td><input type="number" step="0.1" value="${val}" onchange="saveCell(${z},${h},this.value)" class="${cls}"></td>`;
-    }
-    row += '</tr>';
-    tbody.innerHTML += row;
-  }
-  updateStats();
-}
-
-function saveCell(z, h, val) {
-  if (!matrix[z]) matrix[z] = {};
-  matrix[z][h] = val;
-  localStorage.setItem('matrix', JSON.stringify(matrix));
-  render();
-}
-
-function switchUnit() {
-  if(unit === 'C') {
-    // C -> F
-    for(let z=1; z<=zones; z++) {
-      for(let h=0; h<hours; h++) {
-        if(matrix[z]?.[h]) {
-          matrix[z][h] = (parseFloat(matrix[z][h]) * 9/5 + 32).toFixed(1);
-        }
-      }
-    }
-    unit = 'F';
-  } else {
-    // F -> C
-    for(let z=1; z<=zones; z++) {
-      for(let h=0; h<hours; h++) {
-        if(matrix[z]?.[h]) {
-          matrix[z][h] = ((parseFloat(matrix[z][h]) - 32) * 5/9).toFixed(1);
-        }
-      }
-    }
-    unit = 'C';
-  }
-  document.getElementById('unitBtn').innerText = unit;
-  renderHeader();
-  localStorage.setItem('matrix', JSON.stringify(matrix));
-  render();
-}
-
-function updateStats() {
-  let html = '<h3>Statisztika zónánként</h3>';
-  for (let z = 1; z <= zones; z++) {
-    let vals = Object.values(matrix[z]||{}).map(Number).filter(v
+  color: #
