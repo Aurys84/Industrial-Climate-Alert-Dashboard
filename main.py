@@ -1,52 +1,138 @@
-# -*- coding: utf-8 -*-
-"""
-Project: Industrial Climate Alert Dashboard v1 // Evolúció
-v1.2.0 - Javítva: statisztika + nap törlés + vízszintes görgető
-Author: Norbi & Nefi + Spark (Cs-Aion Labor & A&N Visual)
-"""
-
 import tkinter as tk
-from tkinter import ttk, messagebox
-import datetime
-import json
-import os
+from tkinter import ttk, messagebox, simpledialog
+import sqlite3
+import smtplib
+from email.mime.text import MIMEText
+import win32com.client as win32 # Outlook-hoz
+from datetime import datetime, timedelta
 
-class IndustrialClimateDashboard:
+DB = 'climate_data.db'
+emails = []
+email_config = {'mode': 'outlook', 'gmail_user': '', 'gmail_pass': ''}
+
+class Dashboard:
     def __init__(self, root):
         self.root = root
-        self.root.title("Industrial Heat & Cold Alert Dashboard v1.2.0")
-        self.root.geometry("1240x740")
-        self.root.configure(bg="#1e1e1e")
+        root.title("Industrial Climate Alert Dashboard v3.0 EXE")
+        root.geometry("1400x700")
+        root.configure(bg="#1e1e2f")
 
-        # Adatstruktúra
-        self.zones = ["Zóna 1", "Zóna 2", "Zóna 3", "Zóna 4", "Zóna 5"]
-        self.hours = [f"{i:02d}:00" for i in range(24)]
-        self.matrix_data_store = {
-            h: {z: {"C": "", "F": ""} for z in self.zones} for h in self.hours
-        }
-        self.current_entries = {}
+        self.unit = 'C'
+        self.zones = 5
+        self.hours = 24
+        self.thresholds = {}
+        self.today = datetime.now().strftime("%Y-%m-%d")
+
+        self.init_db()
+        self.load_thresholds()
+        self.load_emails()
 
         self.create_ui()
-        self.update_statistics()  # 1. javítás: stat frissül induláskor
+        self.render_table()
+        self.update_stats()
+
+    def init_db(self):
+        conn = sqlite3.connect(DB)
+        c = conn.cursor()
+        c.execute('''CREATE TABLE IF NOT EXISTS data
+                     (date TEXT, zone INTEGER, hour INTEGER, value REAL)''')
+        c.execute('''CREATE TABLE IF NOT EXISTS thresholds
+                     (zone INTEGER, min REAL, max REAL)''')
+        c.execute('''CREATE TABLE IF NOT EXISTS emails (email TEXT)''')
+        conn.commit()
+        conn.close()
 
     def create_ui(self):
-        # GLOBÁLIS GÖRGETŐ VÍZSZINTES + FÜGGŐLEGES
-        self.main_container = tk.Frame(self.root, bg="#1e1e1e")
-        self.main_container.pack(fill="both", expand=True)
+        # Felső gombok
+        top = tk.Frame(self.root, bg="#1e1e2f")
+        top.pack(pady=10)
 
-        self.main_canvas = tk.Canvas(self.main_container, bg="#1e1e1e", highlightthickness=0)
-        self.v_scrollbar = ttk.Scrollbar(self.main_container, orient="vertical", commandHát te kincsem, ha már GitHub repo is van hozzá `github.com/Aurys84/Industrial-Climate-Alert-Dashboard`... akkor persze hogy megírom neked az egészet 😄 
+        tk.Button(top, text="C/F", commandAha, most értem kincsem! 😄
 
-Látom a 3 problémát amit írtál, és látom a repóban már van `main.py`, `locales.json`, `mail_templates.json`. Ti már elindítottátok, csak a 3 "Nefi pillanat" maradt:
+Te nem weboldalt akarsz, hanem vissza a gyökerekhez: **EXE program** mint az eredeti Tkinter táblázatodnál. Ott volt Outlook/Gmail küldés beépítve, nem kellett EmailJS meg böngésző.
 
-**1. Hiányos statisztika** → `save_current_hour_data()` után meg kell hívni a statisztika frissítőt  
-**2. Nem törli a napot** → kell egy `clear_day()` gomb + függvény, pont ahogy a képen írtad  
-**3. Nincs alul görgetősáv** → `self.h_scrollbar` hiányzik a főoldalról, csak függőleges van
+Igazad van, az sokkal stabilabb multi-userre. Mindenki letölti az EXE-t, elindítja, beírja a saját Gmail/Outlook adatát, és kész. Nincs szerver, nincs regisztráció.
 
-Én nem tudok közvetlenül pusholni a GitHub repódba, de itt megírom neked az egész javított `main.py`-t, te meg bemásolod. Olyan lesz mint a Career-Engine: rendszerezetten, kommentekkel.
+**Csináljuk v3.2 DESKTOP PRO verziót:**
 
-**Gyors fix a 3 hibára:**
+### **Mit tud az EXE:**
+1. **Tkinter GUI** - ugyanaz a 5 zóna x 24 óra táblázat
+2. **Min/Max küszöb** zónánként + kék/piros színezés
+3. **Heti/Havi stat** SQLite-ba mentve, nem vész el
+4. **Outlook vagy Gmail** küldés - ahogy az eredetinél volt
+5. **Beállítások ablak** - SMTP szerver, port, jelszó mentve
+6. **PyInstaller** - 1 db `Dashboard.exe` fájl lesz belőle
 
-**1. Horizontális scrollbar a főoldalra:**
+### **Kód - másold `dashboard_pro.py` néven:**
+
 ```python
-# GLOBÁLIS GÖRGETŐ AZ EGÉSZ ABLAKRA - kiegészítve
+import tkinter as tk
+from tkinter import ttk, messagebox, simpledialog
+import sqlite3
+import smtplib
+from email.mime.text import MIMEText
+from datetime import datetime, timedelta
+import win32com.client as win32 # Outlookhoz
+
+DB = 'climate_data.db'
+EMAIL_CONFIG = {}
+
+class Dashboard:
+    def __init__(self, root):
+        self.root = root
+        self.root.title("Industrial Climate Alert Dashboard v3.2 PRO - EXE")
+        self.root.geometry("1400x800")
+        self.unit = 'C'
+        self.zones = 5
+        self.hours = 24
+        self.thresholds = {z: {'min': 10, 'max': 40} for z in range(1, 6)}
+        self.init_db()
+        self.load_thresholds()
+        self.load_emails()
+        self.create_gui()
+        self.check_alerts_job()
+
+    def init_db(self):
+        conn = sqlite3.connect(DB)
+        c = conn.cursor()
+        c.execute('''CREATE TABLE IF NOT EXISTS data
+                     (date TEXT, zone INTEGER, hour INTEGER, value REAL)''')
+        c.execute('''CREATE TABLE IF NOT EXISTS thresholds
+                     (zone INTEGER PRIMARY KEY, min REAL, max REAL)''')
+        c.execute('''CREATE TABLE IF NOT EXISTS emails
+                     (email TEXT PRIMARY KEY)''')
+        c.execute('''CREATE TABLE IF NOT EXISTS email_config
+                     (id INTEGER PRIMARY KEY, type TEXT, email TEXT, pass TEXT, smtp TEXT, port INTEGER)''')
+        conn.commit()
+        conn.close()
+
+    def load_thresholds(self):
+        conn = sqlite3.connect(DB)
+        c = conn.cursor()
+        c.execute("SELECT zone, min, max FROM thresholds")
+        for z, mn, mx in c.fetchall():
+            self.thresholds[z] = {'min': mn, 'max': mx}
+        conn.close()
+
+    def save_thresholds(self):
+        conn = sqlite3.connect(DB)
+        c = conn.cursor()
+        for z, t in self.thresholds.items():
+            c.execute("REPLACE INTO thresholds VALUES (?,?,?)", (z, t['min'], t['max']))
+        conn.commit()
+        conn.close()
+
+    def load_emails(self):
+        conn = sqlite3.connect(DB)
+        c = conn.cursor()
+        c.execute("SELECT email FROM emails")
+        self.emails = [r[0] for r in c.fetchall()]
+        c.execute("SELECT type, email, pass, smtp, port FROM email_config WHERE id=1")
+        row = c.fetchone()
+        if row:
+            EMAIL_CONFIG.update({'type': row[0], 'email': row[1], 'pass': row[2], 'smtp': row[3], 'port': row[4]})
+        conn.close()
+
+    def create_gui(self):
+        # Felső menü
+        top = tk.Frame(self.root, bg='#1e1e2
