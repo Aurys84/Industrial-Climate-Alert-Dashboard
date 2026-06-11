@@ -1,14 +1,278 @@
 <!DOCTYPE html>
-<html lang="hu"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Dashboard</title>
-<style>body{background:#1e1e2f;color:#fff;font-family:Arial;padding:10px}table{border-collapse:collapse;min-width:1300px}th,td{border:1px solid #444;padding:6px}th{background:#333;position:sticky;top:0}.zone-label{background:#2a2a3f;position:sticky;left:0}input{width:50px;background:#2a2a3f;color:#fff;border:1px solid #555;text-align:center}.hot{background:red}.table-wrapper{overflow-x:auto;border:2px solid #ffb347;border-radius:8px}button{background:#ffb347;color:#1e1e2f;border:none;padding:10px;border-radius:6px;font-weight:bold}</style>
-</head><body>
-<h2 style="color:#ffb347;text-align:center">Industrial Climate Alert Dashboard v2.0</h2>
-<button onclick="unit=unit=='C'?'F':'C';document.getElementById('u').innerText=unit;render()">C/F</button>
-<button id="u">C</button>
-<button onclick="localStorage.clear();location.reload()">Törlés</button>
-<div class="table-wrapper"><table><thead><tr id="h"></tr></thead><tbody id="b"></tbody></table></div>
-<div id="s" style="margin-top:15px;padding:10px;background:#2a2a3f;border-radius:8px"></div>
+<html lang="hu">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Industrial Climate Alert Dashboard v3.0 PRO</title>
+<style>
+body{font-family:Arial;background:#1e1e2f;color:#fff;margin:0;padding:12px}
+h2{color:#ffb347;text-align:center;margin:0 0 15px}
+.controls{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;justify-content:center}
+button{padding:10px 14px;border:none;border-radius:6px;background:#ffb347;color:#1e1e2f;font-weight:bold;cursor:pointer;font-size:15px}
+button:hover{background:#ffa500}
+.thresholds{display:flex;gap:15px;flex-wrap:wrap;justify-content:center;margin-bottom:15px;padding:10px;background:#2a2a3f;border-radius:8px}
+.thresholds div{font-size:14px}
+.thresholds input{width:60px;background:#1e1e2f;color:#fff;border:1px solid #ffb347;border-radius:4px;padding:4px;text-align:center}
+.table-wrapper{overflow-x:auto;border:2px solid #ffb347;border-radius:8px;-webkit-overflow-scrolling:touch}
+table{border-collapse:collapse;min-width:1400px}
+th,td{border:1px solid #444;padding:5px;text-align:center}
+th{background:#333;position:sticky;top:0;z-index:2;font-size:12px}
+.zone-label{background:#2a2a3f;font-weight:bold;position:sticky;left:0;z-index:1;min-width:65px}
+input[type=number]{width:50px;height:32px;background:#2a2a3f;color:#fff;border:1px solid #555;border-radius:4px;text-align:center;font-size:14px}
+.hot{background:#ff4444!important;color:#fff;border-color:#ff0000!important}
+.cold{background:#44aaff!important;color:#fff;border-color:#0088ff!important}
+.stats{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:15px}
+.stats div{padding:12px;background:#2a2a3f;border-radius:8px;border:1px solid #ffb347}
+.stats h3{color:#ffb347;margin:0 0 8px;font-size:16px}
+.email-box{margin-top:15px;padding:12px;background:#2a2a3f;border-radius:8px;border:1px solid #ffb347}
+.email-box input{width:200px;padding:6px;background:#1e1e2f;color:#fff;border:1px solid #555;border-radius:4px;margin-right:6px}
+.alert-log{margin-top:10px;max-height:150px;overflow-y:auto;font-size:13px;background:#1e1e2f;padding:8px;border-radius:6px}
+.alert-log p{margin:4px 0;color:#ffaa44}
+@media(max-width:600px){.stats{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<h2>Industrial Climate Alert Dashboard v3.0 PRO</h2>
+
+<div class="controls">
+  <button id="unitBtn" onclick="switchUnit()">C</button>
+  <button onclick="saveDay()">Nap mentése</button>
+  <button onclick="deleteToday()">Mai nap törlése</button>
+</div>
+
+<div id="thresholds" class="thresholds"></div>
+
+<div class="table-wrapper">
+  <table>
+    <thead><tr id="thead-row"></tr></thead>
+    <tbody id="tbody"></tbody>
+  </table>
+</div>
+
+<div class="stats">
+  <div><h3>Ma - Statisztika</h3><div id="todayStats"></div></div>
+  <div><h3>Hét - Statisztika</h3><div id="weekStats"></div></div>
+  <div><h3>Hónap - Statisztika</h3><div id="monthStats"></div></div>
+  <div><h3>Riasztás Log</h3><div id="alertLog" class="alert-log"></div></div>
+</div>
+
+<div class="email-box">
+  <h3 style="color:#ffb347;margin-top:0">Email Riasztás Beállítás</h3>
+  <input type="email" id="newEmail" placeholder="email@pelda.hu">
+  <button onclick="addEmail()">+ Hozzáadás</button>
+  <div id="emailList" style="margin-top:8px;font-size:14px"></div>
+  <p style="font-size:12px;color:#aaa;margin-top:8px">Megjegyzés: EmailJS fiók kell hozzá. Kód alján be kell írni a saját Service ID-t.</p>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/emailjs-com@3/dist/email.min.js"></script>
 <script>
-let unit='C',m=JSON.parse(localStorage.m||'{}');
-function render(){let h='<th class="zone-label">Zóna</th>';for(let i=0;i<24;i++)h+=`<th>${i}:00 ${unit}</th>`;document.getElementById('h').innerHTML=h;let b='';for(let z=1;z<=5;z++){b+=`<tr><td class="zone-label">Zóna ${z}</td>`;for(let i=0;i<24;i++){let v=m[z]?.[i]||'',n=parseFloat(v),c=(n>40&&unit=='C')||(n>104&&unit=='F')?'hot':'';b+=`<td><input value="${v}" onchange="m[${z}]=m[${z}]||{};m[${z}][${i}]=this.value;localStorage.m=JSON.stringify(m);this.className='${c}'" class="${c}"></td>`}b+='</tr>'}document.getElementById('b').innerHTML=b;let s='<h3 style="color:#ffb347">Statisztika</h3>';for(let z=1;z<=5;z++){let v=Object.values(m[z]||{}).map(Number).filter(x=>!isNaN(x));s+=v.length?`<p><b>Zóna ${z}:</b> Max ${Math.max(...v).toFixed(1)}°${unit} | Min ${Math.min(...v).toFixed(1)}°${unit} | Átlag ${(v.reduce((a,b)=>a+b,0)/v.length).toFixed(1)}°${unit}</p>`:`<p><b>Zóna ${z}:</b> Nincs adat</p>`}document.getElementById('s').innerHTML=s}render();
-</script></body></html>
+// KONFIG - IDE ÍRD BE A SAJÁT EMAILJS ADATODAT
+const EMAILJS_USER_ID = 'TE_USER_ID'; // emailjs.com → Account → API Keys
+const EMAILJS_SERVICE_ID = 'TE_SERVICE_ID'; // EmailJS → Email Services
+const EMAILJS_TEMPLATE_ID = 'TE_TEMPLATE_ID'; // EmailJS → Email Templates
+
+let unit = 'C';
+let todayData = {};
+let thresholds = {};
+let emails = JSON.parse(localStorage.getItem('emails') || '[]');
+const zones = 5;
+const hours = 24;
+const today = new Date().toISOString().split('T')[0];
+
+function init() {
+  loadData();
+  renderThresholds();
+  renderHeader();
+  render();
+  renderEmails();
+  emailjs.init(EMAILJS_USER_ID);
+}
+
+function renderThresholds() {
+  let html = '';
+  for(let z=1; z<=zones; z++) {
+    if(!thresholds[z]) thresholds[z] = {min: 10, max: 40};
+    html += `<div><b>Zóna ${z}</b><br>Min: <input type="number" step="0.1" value="${thresholds[z].min}" onchange="setThreshold(${z},'min',this.value)"> Max: <input type="number" step="0.1" value="${thresholds[z].max}" onchange="setThreshold(${z},'max',this.value)"></div>`;
+  }
+  document.getElementById('thresholds').innerHTML = html;
+}
+
+function setThreshold(z, type, val) {
+  thresholds[z][type] = parseFloat(val);
+  localStorage.setItem('thresholds', JSON.stringify(thresholds));
+  render();
+}
+
+function renderHeader() {
+  const row = document.getElementById('thead-row');
+  let html = '<th class="zone-label">Zóna</th>';
+  for(let i=0; i<hours; i++) html += `<th>${i}:00 ${unit}</th>`;
+  row.innerHTML = html;
+}
+
+function render() {
+  const tbody = document.getElementById('tbody');
+  let html = '';
+  for (let z = 1; z <= zones; z++) {
+    html += `<tr><td class="zone-label">Zóna ${z}</td>`;
+    for (let h = 0; h < hours; h++) {
+      let val = todayData[z]?.[h]?? '';
+      let num = parseFloat(val);
+      let min = thresholds[z].min;
+      let max = thresholds[z].max;
+      let cls = '';
+      if(!isNaN(num)) {
+        if(num > max) { cls = 'hot'; checkAlert(z, h, num, 'MAX'); }
+        else if(num < min) { cls = 'cold'; checkAlert(z, h, num, 'MIN'); }
+      }
+      html += `<td><input type="number" step="0.1" inputmode="decimal" value="${val}" onchange="saveCell(${z},${h},this.value)" class="${cls}"></td>`;
+    }
+    html += '</tr>';
+  }
+  tbody.innerHTML = html;
+  updateStats();
+}
+
+function saveCell(z, h, val) {
+  if (!todayData[z]) todayData[z] = {};
+  todayData[z][h] = val;
+  localStorage.setItem('today_'+today, JSON.stringify(todayData));
+  render();
+}
+
+function switchUnit() {
+  const convert = unit === 'C'? (c=>c*9/5+32) : (f=>(f-32)*5/9);
+  for(let z=1; z<=zones; z++) {
+    for(let h=0; h<hours; h++) {
+      if(todayData[z]?.[h]) todayData[z][h] = convert(parseFloat(todayData[z][h])).toFixed(1);
+    }
+    thresholds[z].min = convert(thresholds[z].min).toFixed(1);
+    thresholds[z].max = convert(thresholds[z].max).toFixed(1);
+  }
+  unit = unit === 'C'? 'F' : 'C';
+  document.getElementById('unitBtn').innerText = unit;
+  renderThresholds();
+  renderHeader();
+  localStorage.setItem('thresholds', JSON.stringify(thresholds));
+  render();
+}
+
+function saveDay() {
+  let allDays = JSON.parse(localStorage.getItem('allDays') || '{}');
+  allDays[today] = todayData;
+  localStorage.setItem('allDays', JSON.stringify(allDays));
+  alert('Mai nap elmentve!');
+}
+
+function deleteToday() {
+  if(confirm('Törlöd a mai adatot?')) {
+    todayData = {};
+    localStorage.removeItem('today_'+today);
+    render();
+  }
+}
+
+function updateStats() {
+  // Mai stat
+  let html = '';
+  for(let z=1; z<=zones; z++) {
+    let vals = Object.values(todayData[z]||{}).map(Number).filter(v=>!isNaN(v));
+    if(vals.length) html += `<p><b>Zóna ${z}:</b> Max ${Math.max(...vals).toFixed(1)}° | Min ${Math.min(...vals).toFixed(1)}° | Átlag ${(vals.reduce((a,b)=>a+b,0)/vals.length).toFixed(1)}°</p>`;
+    else html += `<p><b>Zóna ${z}:</b> Nincs adat</p>`;
+  }
+  document.getElementById('todayStats').innerHTML = html;
+
+  // Hét/Hónap stat
+  let allDays = JSON.parse(localStorage.getItem('allDays') || '{}');
+  let weekHtml = '', monthHtml = '';
+  let weekDays = getLastNDays(7, allDays);
+  let monthDays = getLastNDays(30, allDays);
+
+  for(let z=1; z<=zones; z++) {
+    let weekVals = getAllVals(z, weekDays);
+    let monthVals = getAllVals(z, monthDays);
+    weekHtml += weekVals.length? `<p><b>Zóna ${z}:</b> Max ${Math.max(...weekVals).toFixed(1)}° | Min ${Math.min(...weekVals).toFixed(1)}°</p>` : `<p><b>Zóna ${z}:</b> Nincs adat</p>`;
+    monthHtml += monthVals.length? `<p><b>Zóna ${z}:</b> Max ${Math.max(...monthVals).toFixed(1)}° | Min ${Math.min(...monthVals).toFixed(1)}°</p>` : `<p><b>Zóna ${z}:</b> Nincs adat</p>`;
+  }
+  document.getElementById('weekStats').innerHTML = weekHtml;
+  document.getElementById('monthStats').innerHTML = monthHtml;
+}
+
+function getLastNDays(n, allDays) {
+  let res = {};
+  let dates = Object.keys(allDays).sort().slice(-n);
+  dates.forEach(d => res[d] = allDays[d]);
+  return res;
+}
+
+function getAllVals(z, days) {
+  let vals = [];
+  Object.values(days).forEach(day => {
+    Object.values(day[z]||{}).forEach(v => {
+      let num = Number(v);
+      if(!isNaN(num)) vals.push(num);
+    });
+  });
+  return vals;
+}
+
+function checkAlert(z, h, val, type) {
+  let key = `${today}-${z}-${h}-${type}`;
+  let sent = JSON.parse(localStorage.getItem('alertsSent') || '{}');
+  if(sent[key]) return; // már küldtük
+
+  sent[key] = true;
+  localStorage.setItem('alertsSent', JSON.stringify(sent));
+
+  let log = document.getElementById('alertLog');
+  log.innerHTML = `<p>${new Date().toLocaleTimeString()} - Zóna ${z} ${h}:00 ${type} riasztás: ${val}°${unit}</p>` + log.innerHTML;
+
+  if(emails.length > 0) {
+    sendEmail(z, h, val, type);
+  }
+}
+
+function sendEmail(z, h, val, type) {
+  const templateParams = {
+    to_email: emails.join(','),
+    zone: z,
+    hour: h,
+    value: val,
+    type: type,
+    unit: unit,
+    date: today
+  };
+  emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_ID, templateParams)
+   .then(() => console.log('Email elküldve'))
+   .catch(err => console.error('Email hiba:', err));
+}
+
+function addEmail() {
+  let email = document.getElementById('newEmail').value.trim();
+  if(email &&!emails.includes(email)) {
+    emails.push(email);
+    localStorage.setItem('emails', JSON.stringify(emails));
+    document.getElementById('newEmail').value = '';
+    renderEmails();
+  }
+}
+
+function renderEmails() {
+  document.getElementById('emailList').innerHTML = emails.map(e=>`<span style="background:#1e1e2f;padding:4px 8px;border-radius:4px;margin-right:5px">${e} <span onclick="removeEmail('${e}')" style="cursor:pointer;color:#ff4444">x</span></span>`).join('');
+}
+
+function removeEmail(e) {
+  emails = emails.filter(x=>x!==e);
+  localStorage.setItem('emails', JSON.stringify(emails));
+  renderEmails();
+}
+
+function loadData() {
+  todayData = JSON.parse(localStorage.getItem('today_'+today) || '{}');
+  thresholds = JSON.parse(localStorage.getItem('thresholds') || '{}');
+}
+
+init();
+</script>
+</body>
+</html>
