@@ -1,0 +1,21 @@
+{
+  "name": "Industrial Climate Alert v4.0",
+  "short_name": "ClimateAlert",
+  "start_url": "index.html",
+  "display": "standalone",
+  "background_color": "#1e1e2f",
+  "theme_color": "#ffb347",
+  "description": "Efficient Real-Time Industrial Climate Monitoring Dashboard",
+  "icons": [
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
