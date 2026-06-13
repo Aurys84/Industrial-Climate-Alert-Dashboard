@@ -151,7 +151,10 @@ let thresholds = {};
 let emails = [];
 const zones = 5;
 const hours = 24;
-const today = new Date().toISOString().split('T');
+
+// Állandó kulcsok az adatok tárolásához (nem a dátumtól függ)
+const STORAGE_KEY = 'climate_dashboard_data';
+const ALERT_LOG_KEY = 'climate_alert_log';
 
 // --- INICIALIZÁLÁS ---
 function init() {
@@ -244,7 +247,10 @@ function renderTable() {
 function saveCell(z, h, val) {
   if (!todayData[z]) todayData[z] = {};
   todayData[z] [h] = val;
-  localStorage.setItem('today_' + today, JSON.stringify(todayData));
+  
+  // Mentés az állandó kulcs alá
+  localStorage.setItem(STORAGE_KEY, JSON.stringify({ todayData: todayData }));
+  
   renderTable();
   updateStats();
 }
@@ -267,8 +273,11 @@ function switchUnit() {
   
   unit = unit === 'C' ? 'F' : 'C';
   document.getElementById('unitBtn').innerText = unit;
-  localStorage.setItem('today_' + today, JSON.stringify(todayData));
+  
+  // Mentés az állandó kulcs alá
+  localStorage.setItem(STORAGE_KEY, JSON.stringify({ todayData: todayData }));
   localStorage.setItem('thresholds', JSON.stringify(thresholds));
+  
   renderThresholds();
   renderHeader();
   renderTable();
@@ -277,7 +286,8 @@ function switchUnit() {
 // --- MENTÉS / TÖRLÉS ---
 function saveDay() {
   let allDays = JSON.parse(localStorage.getItem('allDays') || '{}');
-  allDays[today] = todayData;
+  let todayStr = new Date().toISOString().split('T');
+  allDays[todayStr] = todayData;
   localStorage.setItem('allDays', JSON.stringify(allDays));
   alert(dict[lang].saved);
 }
@@ -285,8 +295,11 @@ function saveDay() {
 function deleteToday() {
   if(confirm('Biztosan törlöd a mai adatot?')) {
     todayData = {};
-    localStorage.removeItem('today_' + today);
+    localStorage.removeItem(STORAGE_KEY); // Az állandó kulcs törlése
+    localStorage.removeItem(ALERT_LOG_KEY); // A riasztási napló törlése
     renderTable();
+    updateAlerts();
+    updateStats();
     alert(dict[lang].deleted);
   }
 }
@@ -343,13 +356,13 @@ function checkAlert(z, h, val, type) {
   let msg = `${t.zone} ${z} @ ${h}:00 - ${val}° (${type === 'MAX' ? t.alertMax : t.alertMin})`;
   if(!alertLog.includes(msg)) {
     alertLog.push(msg);
-    localStorage.setItem('alertLog_' + today, JSON.stringify(alertLog));
+    localStorage.setItem(ALERT_LOG_KEY, JSON.stringify(alertLog));
   }
 }
 
 function updateAlerts() {
   const t = dict[lang];
-  let log = JSON.parse(localStorage.getItem('alertLog_' + today) || '[]');
+  let log = JSON.parse(localStorage.getItem(ALERT_LOG_KEY) || '[]');
   
   // Ha van nap, de nincs log, nézzük át az aktuális adatokat
   if(log.length === 0 && Object.keys(todayData).length > 0) {
@@ -365,7 +378,7 @@ function updateAlerts() {
         }
       }
     }
-    localStorage.setItem('alertLog_' + today, JSON.stringify(log));
+    localStorage.setItem(ALERT_LOG_KEY, JSON.stringify(log));
   }
   document.getElementById('alertLog').innerHTML = log.map(l => `<div>${l}</div>`).join('');
 }
@@ -411,11 +424,12 @@ function sendManualEmail() {
     }
   }
   
-  let subject = dict[lang].mailSubject + today;
+  let todayStr = new Date().toISOString().split('T');
+  let subject = dict[lang].mailSubject + todayStr;
   let body = dict[lang].mailBody + "\n\n" + summary;
   
   // Ha van log
-  let log = JSON.parse(localStorage.getItem('alertLog_' + today) || '[]');
+  let log = JSON.parse(localStorage.getItem(ALERT_LOG_KEY) || '[]');
   if(log.length > 0) {
     body += "\n\nRiasztások:\n" + log.join("\n");
   }
@@ -427,7 +441,12 @@ function sendManualEmail() {
 
 // --- ADATOK BETÖLTÉSE ---
 function loadData() {
-  todayData = JSON.parse(localStorage.getItem('today_' + today) || '{}');
+  // Az adatokat az állandó kulcs alatt olvassuk be
+  let storedData = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
+  
+  // Ha van adat, akkor azt használjuk, különben üres objektum
+  todayData = storedData.todayData || {};
+  
   thresholds = JSON.parse(localStorage.getItem('thresholds') || '{}');
   emails = JSON.parse(localStorage.getItem('emails') || '[]');
   
