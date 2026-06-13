@@ -1,138 +1,255 @@
-import tkinter as tk
-from tkinter import ttk, messagebox, simpledialog
-import sqlite3
-import smtplib
-from email.mime.text import MIMEText
-import win32com.client as win32 # Outlook-hoz
-from datetime import datetime, timedelta
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Klíma Dashboard</title>
+    <style>
+        body { background: #121212; color: #e0e0e0; font-family: Arial, sans-serif; padding: 15px; margin: 0; font-size: 16px; }
+        h1 { color: #00e5ff; text-align: center; margin-bottom: 15px; }
+        .controls { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 15px; background: #1e1e1e; padding: 12px; border-radius: 8px; }
+        .control-group { display: flex; align-items: center; gap: 8px; flex: 1; min-width: 120px; }
+        select, button, input { padding: 10px; border-radius: 6px; border: 1px solid #444; background: #2c2c2c; color: #fff; font-size: 15px; }
+        button { background: #00e5ff; color: #000; font-weight: bold; cursor: pointer; border: none; }
+        button:hover { background: #00b8cc; }
+        .btn-danger { background: #ff4081; color: white; }
+        .btn-warning { background: #ffab40; color: #000; }
+        .btn-save { background: #69f0ae; color: #000; }
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; background: #1e1e1e; border-radius: 8px; overflow: hidden; }
+        th, td { border: 1px solid #333; padding: 12px; text-align: center; }
+        th { background: #00e5ff; color: #000; font-weight: bold; }
+        input[type="number"] { width: 70px; padding: 6px; text-align: center; background: #2c2c2c; color: #fff; border: 1px solid #555; border-radius: 4px; }
+        .status { font-weight: bold; }
+        .ok { color: #00e5ff; }
+        .warn { color: #ff4081; animation: pulse 1.5s infinite; }
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+        .panel { background: #1e1e1e; padding: 15px; border-radius: 8px; margin-top: 20px; }
+        .panel h3 { color: #00e5ff; margin-top: 0; }
+        .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(80px, 1fr)); gap: 10px; margin-top: 10px; }
+        .stat-box { background: #2c2c2c; padding: 10px; border-radius: 6px; text-align: center; }
+        .stat-val { font-size: 1.4em; font-weight: bold; color: #00e5ff; }
+        .stat-label { font-size: 0.8em; color: #aaa; }
+        .msg { margin-top: 15px; text-align: center; font-weight: bold; min-height: 24px; padding: 10px; border-radius: 4px; display: none; }
+        .msg.success { background: rgba(0, 229, 255, 0.1); color: #69f0ae; border: 1px solid #69f0ae; }
+        .msg.error { background: rgba(255, 64, 129, 0.1); color: #ff4081; border: 1px solid #ff4081; }
+    </style>
+</head>
+<body>
 
-DB = 'climate_data.db'
-emails = []
-email_config = {'mode': 'outlook', 'gmail_user': '', 'gmail_pass': ''}
+    <h1 id="title">Klíma Dashboard</h1>
 
-class Dashboard:
-    def __init__(self, root):
-        self.root = root
-        root.title("Industrial Climate Alert Dashboard v3.0 EXE")
-        root.geometry("1400x700")
-        root.configure(bg="#1e1e2f")
+    <div class="controls">
+        <div class="control-group">
+            <label id="lblLang">Nyelv:</label>
+            <select id="lang" onchange="changeLang()">
+                <option value="HU">Magyar</option>
+                <option value="EN">English</option>
+                <option value="DE">Deutsch</option>
+            </select>
+        </div>
+        <div class="control-group">
+            <label id="lblHour">Óra:</label>
+            <select id="hour" onchange="changeHour()"></select>
+        </div>
+        <button onclick="saveAll()" class="btn-save" id="btnSave">💾 MENTÉS</button>
+        <button onclick="deleteHour()" class="btn-danger" id="btnDel">🗑️ Törlés</button>
+        <button onclick="sendEmail()" class="btn-warning" id="btnEmail">📧 KÜLDÉS</button>
+    </div>
 
-        self.unit = 'C'
-        self.zones = 5
-        self.hours = 24
-        self.thresholds = {}
-        self.today = datetime.now().strftime("%Y-%m-%d")
+    <table>
+        <thead>
+            <tr>
+                <th id="thZone">Zóna</th>
+                <th id="thC">°C</th>
+                <th id="thF">°F</th>
+                <th id="thMin">Min</th>
+                <th id="thMax">Max</th>
+                <th id="thStatus">Állapot</th>
+            </tr>
+        </thead>
+        <tbody id="tableBody"></tbody>
+    </table>
 
-        self.init_db()
-        self.load_thresholds()
-        self.load_emails()
+    <div class="panel">
+        <h3 id="stTitle">Statisztika</h3>
+        <div class="stats-grid">
+            <div class="stat-box"><div class="stat-val" id="stAvg">--</div><div class="stat-label" id="stAvgLbl">Átlag</div></div>
+            <div class="stat-box"><div class="stat-val" id="stMax">--</div><div class="stat-label" id="stMaxLbl">Max</div></div>
+            <div class="stat-box"><div class="stat-val" id="stMin">--</div><div class="stat-label" id="stMinLbl">Min</div></div>
+        </div>
+    </div>
 
-        self.create_ui()
-        self.render_table()
-        self.update_stats()
+    <div class="panel">
+        <h3 id="thTitle">Küszöbértékek</h3>
+        <div id="threshList"></div>
+    </div>
 
-    def init_db(self):
-        conn = sqlite3.connect(DB)
-        c = conn.cursor()
-        c.execute('''CREATE TABLE IF NOT EXISTS data
-                     (date TEXT, zone INTEGER, hour INTEGER, value REAL)''')
-        c.execute('''CREATE TABLE IF NOT EXISTS thresholds
-                     (zone INTEGER, min REAL, max REAL)''')
-        c.execute('''CREATE TABLE IF NOT EXISTS emails (email TEXT)''')
-        conn.commit()
-        conn.close()
+    <div class="panel">
+        <h3 id="emTitle">E-mail Címek</h3>
+        <input type="text" id="emailInput" placeholder="pelda@pelda.hu, pelda2@pelda.hu" onchange="saveEmailList()">
+        <div id="emailTags" style="margin-top: 10px;"></div>
+    </div>
 
-    def create_ui(self):
-        # Felső gombok
-        top = tk.Frame(self.root, bg="#1e1e2f")
-        top.pack(pady=10)
+    <div id="msgBox" class="msg"></div>
 
-        tk.Button(top, text="C/F", commandAha, most értem kincsem! 😄
+    <script>
+        // --- ÁLLANDÓ ADATOK ---
+        const zones = ["Z1", "Z2", "Z3", "Z4", "Z5"];
+        const hours = Array.from({length: 24}, (_, i) => `${i.toString().padStart(2, '0')}:00`);
+        
+        const dict = {
+            "HU": { title: "Klíma Dashboard", lblLang: "Nyelv:", lblHour: "Óra:", btnSave: "💾 MENTÉS", btnDel: "🗑️ Törlés", btnEmail: "📧 KÜLDÉS", thZone: "Zóna", thC: "°C", thF: "°F", thMin: "Min", thMax: "Max", thStatus: "Állapot", stOk: "OK", stWarn: "RIASZTÁS!", stTitle: "Statisztika", stAvg: "Átlag", stMax: "Max", stMin: "Min", thTitle: "Küszöbértékek", emTitle: "E-mail Címek", msgSaved: "✓ Mentve!", msgSent: "✓ E-mail megnyitva!", msgDelOk: "✓ Törölve!", msgErr: "Hiba!" },
+            "EN": { title: "Climate Dashboard", lblLang: "Language:", lblHour: "Hour:", btnSave: "💾 SAVE", btnDel: "🗑️ Delete", btnEmail: "📧 SEND", thZone: "Zone", thC: "°C", thF: "°F", thMin: "Min", thMax: "Max", thStatus: "Status", stOk: "OK", stWarn: "ALARM!", stTitle: "Statistics", stAvg: "Avg", stMax: "Max", stMin: "Min", thTitle: "Thresholds", emTitle: "Email Addresses", msgSaved: "✓ Saved!", msgSent: "✓ Email opened!", msgDelOk: "✓ Deleted!", msgErr: "Error!" },
+            "DE": { title: "Klima Dashboard", lblLang: "Sprache:", lblHour: "Stunde:", btnSave: "💾 SPEICHERN", btnDel: "🗑️ Löschen", btnEmail: "📧 SENDEN", thZone: "Zone", thC: "°C", thF: "°F", thMin: "Min", thMax: "Max", thStatus: "Status", stOk: "OK", stWarn: "ALARMM!", stTitle: "Statistik", stAvg: "Durchschn.", stMax: "Max", stMin: "Min", thTitle: "Grenzwerte", emTitle: "E-Mail-Adressen", msgSaved: "✓ Gespeichert!", msgSent: "✓ E-Mail geöffnet!", msgDelOk: "✓ Gelöscht!", msgErr: "Fehler!" }
+        };
 
-Te nem weboldalt akarsz, hanem vissza a gyökerekhez: **EXE program** mint az eredeti Tkinter táblázatodnál. Ott volt Outlook/Gmail küldés beépítve, nem kellett EmailJS meg böngésző.
+        let lang = "HU";
+        let currentHour = "00:00";
+        let data = {};
+        let thresh = {};
+        let emailList = [];
 
-Igazad van, az sokkal stabilabb multi-userre. Mindenki letölti az EXE-t, elindítja, beírja a saját Gmail/Outlook adatát, és kész. Nincs szerver, nincs regisztráció.
+        // --- INICIALIZÁLÁS ---
+        function init() {
+            // Adatok inicializálása
+            hours.forEach(h => {
+                data[h] = {};
+                zones.forEach(z => { data[h] [z] = { c: "", f: "" }; });
+            });
+            zones.forEach(z => {
+                thresh[z] = { min: 18, max: 28 };
+            });
 
-**Csináljuk v3.2 DESKTOP PRO verziót:**
+            // Selectek feltöltése
+            const hSel = document.getElementById('hour');
+            hours.forEach(h => {
+                const opt = document.createElement('option');
+                opt.value = h;
+                opt.innerText = h;
+                hSel.appendChild(opt);
+            });
 
-### **Mit tud az EXE:**
-1. **Tkinter GUI** - ugyanaz a 5 zóna x 24 óra táblázat
-2. **Min/Max küszöb** zónánként + kék/piros színezés
-3. **Heti/Havi stat** SQLite-ba mentve, nem vész el
-4. **Outlook vagy Gmail** küldés - ahogy az eredetinél volt
-5. **Beállítások ablak** - SMTP szerver, port, jelszó mentve
-6. **PyInstaller** - 1 db `Dashboard.exe` fájl lesz belőle
+            // Első renderelés
+            changeLang();
+        }
 
-### **Kód - másold `dashboard_pro.py` néven:**
+        // --- NYELVVÁLTÁS ---
+        function changeLang() {
+            lang = document.getElementById('lang').value;
+            const t = dict[lang];
 
-```python
-import tkinter as tk
-from tkinter import ttk, messagebox, simpledialog
-import sqlite3
-import smtplib
-from email.mime.text import MIMEText
-from datetime import datetime, timedelta
-import win32com.client as win32 # Outlookhoz
+            // Szövegek frissítése
+            document.getElementById('title').innerText = t.title;
+            document.getElementById('lblLang').innerText = t.lblLang;
+            document.getElementById('lblHour').innerText = t.lblHour;
+            document.getElementById('btnSave').innerText = t.btnSave;
+            document.getElementById('btnDel').innerText = t.btnDel;
+            document.getElementById('btnEmail').innerText = t.btnEmail;
+            document.getElementById('thZone').innerText = t.thZone;
+            document.getElementById('thC').innerText = t.thC;
+            document.getElementById('thF').innerText = t.thF;
+            document.getElementById('thMin').innerText = t.thMin;
+            document.getElementById('thMax').innerText = t.thMax;
+            document.getElementById('thStatus').innerText = t.thStatus;
+            document.getElementById('stTitle').innerText = t.stTitle;
+            document.getElementById('stAvgLbl').innerText = t.stAvg;
+            document.getElementById('stMaxLbl').innerText = t.stMax;
+            document.getElementById('stMinLbl').innerText = t.stMin;
+            document.getElementById('thTitle').innerText = t.thTitle;
+            document.getElementById('emTitle').innerText = t.emTitle;
 
-DB = 'climate_data.db'
-EMAIL_CONFIG = {}
+            // Táblázat frissítése
+            renderTable();
+            updateStats();
+        }
 
-class Dashboard:
-    def __init__(self, root):
-        self.root = root
-        self.root.title("Industrial Climate Alert Dashboard v3.2 PRO - EXE")
-        self.root.geometry("1400x800")
-        self.unit = 'C'
-        self.zones = 5
-        self.hours = 24
-        self.thresholds = {z: {'min': 10, 'max': 40} for z in range(1, 6)}
-        self.init_db()
-        self.load_thresholds()
-        self.load_emails()
-        self.create_gui()
-        self.check_alerts_job()
+        // --- ÓRA VÁLTÁS ---
+        function changeHour() {
+            currentHour = document.getElementById('hour').value;
+            renderTable();
+            updateStats();
+        }
 
-    def init_db(self):
-        conn = sqlite3.connect(DB)
-        c = conn.cursor()
-        c.execute('''CREATE TABLE IF NOT EXISTS data
-                     (date TEXT, zone INTEGER, hour INTEGER, value REAL)''')
-        c.execute('''CREATE TABLE IF NOT EXISTS thresholds
-                     (zone INTEGER PRIMARY KEY, min REAL, max REAL)''')
-        c.execute('''CREATE TABLE IF NOT EXISTS emails
-                     (email TEXT PRIMARY KEY)''')
-        c.execute('''CREATE TABLE IF NOT EXISTS email_config
-                     (id INTEGER PRIMARY KEY, type TEXT, email TEXT, pass TEXT, smtp TEXT, port INTEGER)''')
-        conn.commit()
-        conn.close()
+        // --- TÁBLÁZAT MEGJELENÍTÉS ---
+        function renderTable() {
+            const tbody = document.getElementById('tableBody');
+            tbody.innerHTML = "";
+            const t = dict[lang];
 
-    def load_thresholds(self):
-        conn = sqlite3.connect(DB)
-        c = conn.cursor()
-        c.execute("SELECT zone, min, max FROM thresholds")
-        for z, mn, mx in c.fetchall():
-            self.thresholds[z] = {'min': mn, 'max': mx}
-        conn.close()
+            zones.forEach(z => {
+                const val = data[currentHour] [z];
+                const th = thresh[z];
+                const cVal = val.c || "";
+                const fVal = val.f || "";
 
-    def save_thresholds(self):
-        conn = sqlite3.connect(DB)
-        c = conn.cursor()
-        for z, t in self.thresholds.items():
-            c.execute("REPLACE INTO thresholds VALUES (?,?,?)", (z, t['min'], t['max']))
-        conn.commit()
-        conn.close()
+                let status = t.stOk;
+                let cls = "ok";
+                if (cVal !== "") {
+                    const num = parseFloat(cVal);
+                    if (!isNaN(num) && (num < th.min || num > th.max)) { 
+                        status = t.stWarn; 
+                        cls = "warn"; 
+                    }
+                }
 
-    def load_emails(self):
-        conn = sqlite3.connect(DB)
-        c = conn.cursor()
-        c.execute("SELECT email FROM emails")
-        self.emails = [r[0] for r in c.fetchall()]
-        c.execute("SELECT type, email, pass, smtp, port FROM email_config WHERE id=1")
-        row = c.fetchone()
-        if row:
-            EMAIL_CONFIG.update({'type': row[0], 'email': row[1], 'pass': row[2], 'smtp': row[3], 'port': row[4]})
-        conn.close()
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${z}</td>
+                    <td><input type="number" value="${cVal}" oninput="updateVal('${z}', 'c', this.value)"></td>
+                    <td><input type="number" value="${fVal}" oninput="updateVal('${z}', 'f', this.value)"></td>
+                    <td><input type="number" value="${th.min}" onchange="updateThresh('${z}', 'min', this.value)"></td>
+                    <td><input type="number" value="${th.max}" onchange="updateThresh('${z}', 'max', this.value)"></td>
+                    <td class="status ${cls}">${status}</td>
+                `;
+                tbody.appendChild(row);
+            });
+        }
 
-    def create_gui(self):
-        # Felső menü
-        top = tk.Frame(self.root, bg='#1e1e2
+        // --- ÉRTÉK FRISSÍTÉS ---
+        function updateVal(z, type, val) {
+            data[currentHour] [z] [type] = val;
+            
+            // °C -> °F vagy °F -> °C konverzió
+            if (type === 'c' && val !== "") {
+                const c = parseFloat(val);
+                if (!isNaN(c)) {
+                    data[currentHour] [z].f = (c * 9/5 + 32).toFixed(1);
+                }
+            } else if (type === 'f' && val !== "") {
+                const f = parseFloat(val);
+                if (!isNaN(f)) {
+                    data[currentHour] [z].c = ((f - 32) * 5/9).toFixed(1);
+                }
+            }
+
+            renderTable();
+            updateStats();
+        }
+
+        // --- KÜSZÖBÉRTÉK FRISSÍTÉS ---
+        function updateThresh(z, type, val) {
+            thresh[z] [type] = parseFloat(val) || 0;
+            renderTable();
+            updateStats();
+        }
+
+        // --- STATISZTIKA ---
+        function updateStats() {
+            let sum = 0, count = 0, maxV = -999, minV = 999;
+
+            zones.forEach(z => {
+                const cVal = data[currentHour] [z].c;
+                if (cVal !== "") {
+                    const num = parseFloat(cVal);
+                    if (!isNaN(num)) {
+                        sum += num;
+                        count++;
+                        if (num > maxV) maxV = num;
+                        if (num < minV) minV = num;
+                    }
+                }
+            });
+
+            const t = dict[lang];
+            if (count > 0) {
+                document.getElementById('stAvg').
