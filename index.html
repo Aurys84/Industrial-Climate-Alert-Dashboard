@@ -438,25 +438,39 @@ function sendManualEmail() {
     return;
   }
   
-  let summary = "";
-  for(let z=1; z<=zones; z++) {
-    let vals = Object.values(todayData[z]||{}).map(Number).filter(v=>!isNaN(v));
-    if(vals.length) {
-      summary += `Zóna ${z}: Max ${Math.max(...vals).toFixed(1)}°, Min ${Math.min(...vals).toFixed(1)}°, Átl: ${(vals.reduce((a,b)=>a+b,0)/vals.length).toFixed(1)}°\n`;
+  // 1. Aktuális óra lekérése
+  const currentHour = new Date().getHours();
+  const t = dict[lang];
+  
+  let currentHourSummary = `Aktuális állapot (${currentHour}:00):\n`;
+  let alertTriggered = false;
+
+  // 2. Adatok gyűjtése az aktuális órára
+  for(let z = 1; z <= zones; z++) {
+    let val = todayData[z]?.[currentHour];
+    if (val !== undefined) {
+      currentHourSummary += `Zóna ${z}: ${val}°\n`;
+    } else {
+      currentHourSummary += `Zóna ${z}: ${t.noData}\n`;
     }
   }
   
-  let todayStr = new Date().toISOString().split('T');
-  let subject = dict[lang].mailSubject + todayStr;
-  let body = dict[lang].mailBody + "\n\n" + summary;
-  
+  // 3. Csak az aktuális órához tartozó riasztások szűrése
   let log = JSON.parse(localStorage.getItem(ALERT_LOG_KEY) || '[]');
-  if(log.length > 0) {
-    body += "\n\nRiasztások:\n" + log.join("\n");
+  let currentHourAlerts = log.filter(msg => msg.includes(`@ ${currentHour}:00`));
+  
+  let subject = t.mailSubject + new Date().toLocaleDateString();
+  let body = t.mailBody + `${currentHour}:00\n\n` + currentHourSummary;
+  
+  if(currentHourAlerts.length > 0) {
+    body += "\n\nRiasztások ebben az órában:\n" + currentHourAlerts.join("\n");
+  } else {
+    body += "\n\nEbben az órában nincs aktív riasztás.";
   }
 
   let mailtoLink = `mailto:${emails.join(',')}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
   window.location.href = mailtoLink;
+}
 }
 
 // --- ADATOK BETÖLTÉSE (KRITIKUS VÁLTOZÁS) ---
