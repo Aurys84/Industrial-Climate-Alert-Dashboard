@@ -403,27 +403,61 @@ function removeEmail(i) {
 
 function sendManualEmail() {
   const t = dict[lang];
+  
+  // 1. Ha nincs riasztás, hibaüzenet
   if (alertLog.length === 0) {
     alert("Nincs aktív riasztás a küldéshez!");
     return;
   }
+  
+  // 2. Ha nincs email cím, hibaüzenet
   if (emails.length === 0) {
     alert("Nincs megadva e-mail cím!");
     return;
   }
   
-  let subject = t.mailSubject + (unit === "C" ? "°C" : "°F");
-  let body = t.mailBody + "\n";
+  // 3. Dátum hozzáadása az üzenethez (a mai dátummal)
+  let todayStr = new Date().toISOString().split("T");
   
-  // Csak az aktuális hibákat küldi
-  alertLog.forEach(a => {
-    body += `${t.zone} ${a.z} (${a.h}:00): ${a.val}° (${a.alertMsg})\n`;
-  });
+  // 4. Rendezzük a logot az idő szerint (soronként)
+  // A log elemei: { z: zónaszám, h: óraszám, val: érték, type: "MAX"/"MIN", alertMsg: "..." }
+  let sortedLog = [...alertLog].sort((a, b) => a.h - b.h);
   
+  // 5. Táblázatos üzenet összeállítása (idő szerinti sorrendben)
+  let subject = t.mailSubject + (unit === "C" ? "°C" : "°F") + todayStr;
+  let body = t.mailBody + "\n\n";
+  
+  // A táblázat fejléce
+  body += "Riasztások időrendben:\n";
+  body += "----------------------\n";
+  
+  // Sorok (időpontok) hozzáadása
+  for (let h = 0; h < hours; h++) {
+    // Keresünk minden zónát, ahol ebben az órában hiba van
+    let hourAlerts = sortedLog.filter(a => a.h === h);
+    
+    if (hourAlerts.length > 0) {
+      // Ebben az órában van hiba, kiírjuk az összes zónát
+      body += `Óra ${h}:00 - `;
+      
+      // Végigmegyünk a zónákon
+      let zoneAlerts = [];
+      for (let z = 1; z <= zones; z++) {
+        let zoneSpecificAlert = hourAlerts.find(a => a.z === z);
+        if (zoneSpecificAlert) {
+          let type = zoneSpecificAlert.type === "MAX" ? "MAGAS" : "ALACSONY";
+          let color = zoneSpecificAlert.type === "MAX" ? "🔴" : "🔵";
+          body += `${color} Zóna ${z} (${zoneSpecificAlert.val}° ${type}) | `;
+        }
+      }
+      body += "\n"; // Új sor az óra után
+    }
+  }
+  
+  // 6. Küldés
   let mailto = `mailto:${emails.join(",")}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
   window.location.href = mailto;
 }
-
 // --- ADATOK BETÖLTÉSE (A HIBÁS RÉSZ JAVÍTVA) ---
 function loadData() {
   let savedData = localStorage.getItem(STORAGE_KEY);
