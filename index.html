@@ -82,20 +82,99 @@
 </div>
 
 <script>
+// --- NYELVI ADATOK ---
 const dict = {
-  HU: { title: "Industrial Climate Alert Dashboard v4.0", btnSave: "💾 Mentés", btnDel: "🗑️ Törlés", btnEmail: "📧 EMAIL KÜLDÉS", stToday: "Ma - Statisztika", stWeek: "Hét - Statisztika", stMonth: "Hónap - Statisztika", stAlerts: "Riasztások", emTitle: "E-mail Címek", zone: "Zóna", alertMin: "ALACSONY", alertMax: "MAGAS", noData: "Nincs adat", saved: "✓ Mentve!", deleted: "✓ Törölve!", mailSubject: "Klíma Riasztás - ", mailBody: "Aktuális óra adatai: " },
-  EN: { title: "Industrial Climate Alert Dashboard v4.0", btnSave: "💾 Save", btnDel: "🗑️ Delete", btnEmail: "📧 SEND EMAIL", stToday: "Today - Stats", stWeek: "Week - Stats", stMonth: "Month - Stats", stAlerts: "Alert Log", emTitle: "Email Addresses", zone: "Zone", alertMin: "LOW", alertMax: "HIGH", noData: "No Data", saved: "✓ Saved!", deleted: "✓ Deleted!", mailSubject: "Climate Alert - ", mailBody: "Current hour data: " },
-  DE: { title: "Industrial Climate Alert Dashboard v4.0", btnSave: "💾 Speichern", btnDel: "🗑️ Löschen", btnEmail: "📧 EMAIL SENDEN", stToday: "Heute - Statistik", stWeek: "Woche - Statistik", stMonth: "Monat - Statistik", stAlerts: "Alarm-Log", emTitle: "E-Mail-Adressen", zone: "Zone", alertMin: "NIEDRIG", alertMax: "HOCH", noData: "Keine Daten", saved: "✓ Gespeichert!", deleted: "✓ Gelöscht!", mailSubject: "Klima-Alarm - ", mailBody: "Daten der aktuellen Stunde: " }
+  HU: {
+    title: "Industrial Climate Alert Dashboard v4.0",
+    btnSave: "💾 Mentés",
+    btnDel: "🗑️ Törlés",
+    btnEmail: "📧 EMAIL KÜLDÉS",
+    stToday: "Ma - Statisztika",
+    stWeek: "Hét - Statisztika",
+    stMonth: "Hónap - Statisztika",
+    stAlerts: "Riasztások",
+    emTitle: "E-mail Címek",
+    zone: "Zóna",
+    alertMin: "ALACSONY",
+    alertMax: "MAGAS",
+    noData: "Nincs adat",
+    saved: "✓ Mentve!",
+    deleted: "✓ Törölve!",
+    mailSubject: "Klíma Riasztás - ",
+    mailBody: "Figyelem! Hőségriasztás van érvényben a következő órában "
+  },
+  EN: {
+    title: "Industrial Climate Alert Dashboard v4.0",
+    btnSave: "💾 Save",
+    btnDel: "🗑️ Delete",
+    btnEmail: "📧 SEND EMAIL",
+    stToday: "Today - Stats",
+    stWeek: "Week - Stats",
+    stMonth: "Month - Stats",
+    stAlerts: "Alert Log",
+    emTitle: "Email Addresses",
+    zone: "Zone",
+    alertMin: "LOW",
+    alertMax: "HIGH",
+    noData: "No Data",
+    saved: "✓ Saved!",
+    deleted: "✓ Deleted!",
+    mailSubject: "Climate Alert - ",
+    mailBody: "Warning! Heat warning in effect for the next hour "
+  },
+  DE: {
+    title: "Industrial Climate Alert Dashboard v4.0",
+    btnSave: "💾 Speichern",
+    btnDel: "🗑️ Löschen",
+    btnEmail: "📧 EMAIL SENDEN",
+    stToday: "Heute - Statistik",
+    stWeek: "Woche - Statistik",
+    stMonth: "Monat - Statistik",
+    stAlerts: "Alarm-Log",
+    emTitle: "E-Mail-Adressen",
+    zone: "Zone",
+    alertMin: "NIEDRIG",
+    alertMax: "HOCH",
+    noData: "Keine Daten",
+    saved: "✓ Gespeichert!",
+    deleted: "✓ Gelöscht!",
+    mailSubject: "Klima-Alarm - ",
+    mailBody: "Achtung! Hitzewarnung für die nächste Stunde. "
+  }
 };
 
-let lang = "HU", unit = "C", todayData = {}, thresholds = {}, emails = [], alertLog = [];
-const zones = 5, hours = 24, STORAGE_KEY = 'climate_dashboard_data', ALERT_LOG_KEY = 'climate_alert_log_v2';
+// --- VÁLTOZÓK ---
+let lang = "HU";
+let unit = "C";
+let todayData = {};
+let thresholds = {};
+let emails = [];
+let alertLog = []; // Explicit inicializálás
 
-function init() { loadData(); renderThresholds(); renderHeader(); renderTable(); renderEmails(); updateStats(); updateAlerts(); changeLang(); }
+const zones = 5;
+const hours = 24;
 
+// EGYSÉGES, ÁLLANDÓ KULCSOK (NEM DÁTUM ALAPÚ)
+const STORAGE_KEY = 'climate_dashboard_data';
+const ALERT_LOG_KEY = 'climate_alert_log_v2';
+
+// --- INICIALIZÁLÁS ---
+function init() {
+  loadData();
+  renderThresholds();
+  renderHeader();
+  renderTable();
+  renderEmails();
+  updateStats();
+  updateAlerts(); // Riasztások betöltése
+  changeLang(); 
+}
+
+// --- NYELVVÁLTÁS ---
 function changeLang() {
   lang = document.getElementById('langSelect').value;
   const t = dict[lang];
+
   document.getElementById('pageTitle').innerText = t.title;
   document.getElementById('btnSave').innerText = t.btnSave;
   document.getElementById('btnDel').innerText = t.btnDel;
@@ -105,21 +184,36 @@ function changeLang() {
   document.getElementById('stMonth').innerText = t.stMonth;
   document.getElementById('stAlerts').innerText = t.stAlerts;
   document.getElementById('emTitle').innerText = t.emTitle;
-  renderThresholds(); renderHeader(); renderTable(); updateStats(); updateAlerts();
+
+  renderThresholds();
+  renderHeader();
+  renderTable();
+  updateStats();
+  updateAlerts();
 }
 
+// --- KÜSZÖBÉRTÉKEK ---
 function renderThresholds() {
   const t = dict[lang];
   let html = '';
   for(let z=1; z<=zones; z++) {
     if(!thresholds[z]) thresholds[z] = {min: 18, max: 26};
-    html += `<div><b>${t.zone} ${z}</b><br> Min: <input type="number" step="0.1" value="${thresholds[z].min}" onchange="setThreshold(${z},'min',this.value)"> Max: <input type="number" step="0.1" value="${thresholds[z].max}" onchange="setThreshold(${z},'max',this.value)"></div>`;
+    html += `<div>
+      <b>${t.zone} ${z}</b><br>
+      Min: <input type="number" step="0.1" value="${thresholds[z].min}" onchange="setThreshold(${z},'min',this.value)">
+      Max: <input type="number" step="0.1" value="${thresholds[z].max}" onchange="setThreshold(${z},'max',this.value)">
+    </div>`;
   }
   document.getElementById('thresholds').innerHTML = html;
 }
 
-function setThreshold(z, type, val) { thresholds[z][type] = parseFloat(val); localStorage.setItem('thresholds', JSON.stringify(thresholds)); renderTable(); }
+function setThreshold(z, type, val) {
+  thresholds[z] [type] = parseFloat(val);
+  localStorage.setItem('thresholds', JSON.stringify(thresholds));
+  renderTable();
+}
 
+// --- TÁBLÁZAT ---
 function renderHeader() {
   const t = dict[lang];
   const row = document.getElementById('thead-row');
@@ -129,14 +223,24 @@ function renderHeader() {
 }
 
 function renderTable() {
+  const t = dict[lang];
   const tbody = document.getElementById('tbody');
   let html = '';
+  
   for (let z = 1; z <= zones; z++) {
-    html += `<tr><td class="zone-label">${dict[lang].zone} ${z}</td>`;
+    html += `<tr><td class="zone-label">${t.zone} ${z}</td>`;
     for (let h = 0; h < hours; h++) {
       let val = todayData[z]?.[h] ?? '';
       let num = parseFloat(val);
-      let cls = (num > (thresholds[z]?.max ?? 26)) ? 'hot' : ((num < (thresholds[z]?.min ?? 18)) ? 'cold' : '');
+      let min = thresholds[z]?.min ?? 18;
+      let max = thresholds[z]?.max ?? 26;
+      let cls = '';
+      
+      if (!isNaN(num)) {
+        if (num > max) { cls = 'hot'; checkAlert(z, h, num, 'MAX'); }
+        else if (num < min) { cls = 'cold'; checkAlert(z, h, num, 'MIN'); }
+      }
+      
       html += `<td><input type="number" step="0.1" value="${val}" onchange="saveCell(${z},${h},this.value)" class="${cls}"></td>`;
     }
     html += '</tr>';
@@ -146,98 +250,247 @@ function renderTable() {
 
 function saveCell(z, h, val) {
   if (!todayData[z]) todayData[z] = {};
-  todayData[z][h] = val;
+  todayData[z] [h] = val;
+  
+  // Azonnal mentés az ÁLLANDÓ kulcs alá
   localStorage.setItem(STORAGE_KEY, JSON.stringify({ todayData: todayData }));
-  renderTable(); updateStats();
+  
+  renderTable();
+  updateStats();
 }
 
+// --- MÉRTÉKEGYSÉG ---
 function switchUnit() {
   const convert = unit === 'C' ? (c => c * 9/5 + 32) : (f => (f - 32) * 5/9);
+  
   for(let z=1; z<=zones; z++) {
-    for(let h=0; h<hours; h++) if(todayData[z]?.[h]) todayData[z][h] = convert(parseFloat(todayData[z][h])).toFixed(1);
-    if(thresholds[z]) { thresholds[z].min = convert(thresholds[z].min).toFixed(1); thresholds[z].max = convert(thresholds[z].max).toFixed(1); }
+    for(let h=0; h<hours; h++) {
+      if(todayData[z]?.[h]) {
+        todayData[z] [h] = convert(parseFloat(todayData[z] [h])).toFixed(1);
+      }
+    }
+    if(thresholds[z]) {
+      thresholds[z].min = convert(thresholds[z].min).toFixed(1);
+      thresholds[z].max = convert(thresholds[z].max).toFixed(1);
+    }
   }
+  
   unit = unit === 'C' ? 'F' : 'C';
   document.getElementById('unitBtn').innerText = unit;
+  
+  // Mentés
   localStorage.setItem(STORAGE_KEY, JSON.stringify({ todayData: todayData }));
   localStorage.setItem('thresholds', JSON.stringify(thresholds));
-  init();
+  
+  renderThresholds();
+  renderHeader();
+  renderTable();
 }
 
+// --- MENTÉS / TÖRLÉS ---
 function saveDay() {
   let allDays = JSON.parse(localStorage.getItem('allDays') || '{}');
-  allDays[new Date().toISOString().split('T')[0]] = todayData;
+  let todayStr = new Date().toISOString().split('T');
+  allDays[todayStr] = todayData;
   localStorage.setItem('allDays', JSON.stringify(allDays));
   alert(dict[lang].saved);
 }
 
 function deleteToday() {
   if(confirm('Biztosan törlöd a mai adatot?')) {
-    todayData = {}; alertLog = []; localStorage.removeItem(STORAGE_KEY); localStorage.removeItem(ALERT_LOG_KEY); init(); alert(dict[lang].deleted);
+    todayData = {};
+    alertLog = []; // Töröljük a memóriában lévő logot is
+    
+    // TÖRÖLJEK A MINDKETTŐ ÁLLANDÓ KULCSOT
+    localStorage.removeItem(STORAGE_KEY);
+    localStorage.removeItem(ALERT_LOG_KEY);
+    
+    renderTable();
+    updateAlerts();
+    updateStats();
+    alert(dict[lang].deleted);
   }
 }
 
+// --- STATISZTIKA ---
 function updateStats() {
   const t = dict[lang];
+  
+  // Mai stat
+  let html = '';
   for(let z=1; z<=zones; z++) {
     let vals = Object.values(todayData[z]||{}).map(Number).filter(v=>!isNaN(v));
-    document.getElementById('todayStats').innerHTML += `<p><b>${t.zone} ${z}:</b> ${vals.length ? 'Max ' + Math.max(...vals).toFixed(1) + '° | Min ' + Math.min(...vals).toFixed(1) : t.noData}</p>`;
+    if(vals.length) html += `<p><b>${t.zone} ${z}:</b> Max ${Math.max(...vals).toFixed(1)}° | Min ${Math.min(...vals).toFixed(1)}° | Átl ${(vals.reduce((a,b)=>a+b,0)/vals.length).toFixed(1)}°</p>`;
+    else html += `<p><b>${t.zone} ${z}:</b> ${t.noData}</p>`;
   }
-  // Rövidítés: heti/havi statok a kód mérete miatt hasonló logikával...
+  document.getElementById('todayStats').innerHTML = html;
+
+  // Hét/Hónap stat
+  let allDays = JSON.parse(localStorage.getItem('allDays') || '{}');
+  let weekHtml = '', monthHtml = '';
+  let weekDays = getLastNDays(7, allDays);
+  let monthDays = getLastNDays(30, allDays);
+
+  for(let z=1; z<=zones; z++) {
+    let weekVals = getAllVals(z, weekDays);
+    let monthVals = getAllVals(z, monthDays);
+    weekHtml += weekVals.length? `<p><b>${t.zone} ${z}:</b> Max ${Math.max(...weekVals).toFixed(1)}° | Min ${Math.min(...weekVals).toFixed(1)}°</p>` : `<p><b>${t.zone} ${z}:</b> ${t.noData}</p>`;
+    monthHtml += monthVals.length? `<p><b>${t.zone} ${z}:</b> Max ${Math.max(...monthVals).toFixed(1)}° | Min ${Math.min(...monthVals).toFixed(1)}°</p>` : `<p><b>${t.zone} ${z}:</b> ${t.noData}</p>`;
+  }
+  document.getElementById('weekStats').innerHTML = weekHtml;
+  document.getElementById('monthStats').innerHTML = monthHtml;
 }
 
+function getLastNDays(n, allDays) {
+  let days = Object.keys(allDays).reverse().slice(0, n);
+  return days;
+}
+
+function getAllVals(z, days) {
+  let allDays = JSON.parse(localStorage.getItem('allDays') || '{}');
+  let vals = [];
+  days.forEach(d => {
+    if(allDays[d]?.[z]) {
+      vals = vals.concat(Object.values(allDays[d] [z]).map(Number).filter(v=>!isNaN(v)));
+    }
+  });
+  return vals;
+}
+
+// --- RIASZTÁSOK (JAVÍTVA) ---
 function checkAlert(z, h, val, type) {
   const t = dict[lang];
   let msg = `${t.zone} ${z} @ ${h}:00 - ${val}° (${type === 'MAX' ? t.alertMax : t.alertMin})`;
-  if(!alertLog.includes(msg)) { alertLog.push(msg); localStorage.setItem(ALERT_LOG_KEY, JSON.stringify(alertLog)); }
+  
+  // Csak akkor adjuk hozzá, ha még nincs benne
+  if(!alertLog.includes(msg)) {
+    alertLog.push(msg);
+    localStorage.setItem(ALERT_LOG_KEY, JSON.stringify(alertLog));
+  }
 }
 
 function updateAlerts() {
-  alertLog = JSON.parse(localStorage.getItem(ALERT_LOG_KEY) || '[]');
-  document.getElementById('alertLog').innerHTML = alertLog.map(l => `<div>${l}</div>`).join('');
+  const t = dict[lang];
+  
+  // Betöltjük a logot az állandó kulcsról
+  let log = JSON.parse(localStorage.getItem(ALERT_LOG_KEY) || '[]');
+  
+  // Frissítjük a globális változót
+  alertLog = log;
+  
+  // Ha van nap, de nincs log, nézzük át az aktuális adatokat
+  if(log.length === 0 && Object.keys(todayData).length > 0) {
+    let newLog = [];
+    for(let z=1; z<=zones; z++) {
+      for(let h=0; h<hours; h++) {
+        let val = todayData[z]?.[h];
+        if(val) {
+          let num = parseFloat(val);
+          if(!isNaN(num)) {
+             if(num > thresholds[z].max) newLog.push(`${t.zone} ${z} @ ${h}:00 - ${num}° (${t.alertMax})`);
+             else if(num < thresholds[z].min) newLog.push(`${t.zone} ${z} @ ${h}:00 - ${num}° (${t.alertMin})`);
+          }
+        }
+      }
+    }
+    // Ha találtunk új riasztást, elmentjük
+    if(newLog.length > 0) {
+      localStorage.setItem(ALERT_LOG_KEY, JSON.stringify(newLog));
+      alertLog = newLog;
+      document.getElementById('alertLog').innerHTML = newLog.map(l => `<div>${l}</div>`).join('');
+      return;
+    }
+  }
+  
+  // Megjelenítés
+  document.getElementById('alertLog').innerHTML = log.map(l => `<div>${l}</div>`).join('');
 }
 
+// --- EMAIL ---
 function addEmail() {
-  let input = document.getElementById('newEmail'), val = input.value.trim();
-  if(val && !emails.includes(val)) { emails.push(val); localStorage.setItem('emails', JSON.stringify(emails)); input.value = ''; renderEmails(); }
+  let input = document.getElementById('newEmail');
+  let val = input.value.trim();
+  if(val && !emails.includes(val)) {
+    emails.push(val);
+    localStorage.setItem('emails', JSON.stringify(emails));
+    input.value = '';
+    renderEmails();
+  }
 }
 
 function renderEmails() {
-  document.getElementById('emailList').innerHTML = emails.map(e => `<div class="email-tag">${e} <span onclick="removeEmail('${e}')">X</span></div>`).join('');
+  let html = '';
+  emails.forEach(email => {
+    html += `<div class="email-tag">${email} <span onclick="removeEmail('${email}')">X</span></div>`;
+  });
+  document.getElementById('emailList').innerHTML = html;
 }
 
-function removeEmail(email) { emails = emails.filter(e => e !== email); localStorage.setItem('emails', JSON.stringify(emails)); renderEmails(); }
+function removeEmail(email) {
+  emails = emails.filter(e => e !== email);
+  localStorage.setItem('emails', JSON.stringify(emails));
+  renderEmails();
+}
 
-// --- ITT A MÓDOSÍTOTT EMAIL RÉSZ ---
 function sendManualEmail() {
-  if(emails.length === 0) { alert("Nincs e-mail cím hozzáadva!"); return; }
-  
-  const currentHour = new Date().getHours();
-  const t = dict[lang];
-  
-  let currentHourAlerts = alertLog.filter(msg => msg.includes(`@ ${currentHour}:00`));
-  
-  if(currentHourAlerts.length === 0) {
-      alert("Ebben az órában nincs riasztás!");
-      return;
+  if(emails.length === 0) {
+    alert("Nincs e-mail cím hozzáadva!");
+    return;
   }
   
-  let body = t.mailBody + `${currentHour}:00\n\n` + currentHourAlerts.join("\n");
-  let subject = t.mailSubject + new Date().toLocaleDateString() + " " + currentHour + ":00";
+  let summary = "";
+  for(let z=1; z<=zones; z++) {
+    let vals = Object.values(todayData[z]||{}).map(Number).filter(v=>!isNaN(v));
+    if(vals.length) {
+      summary += `Zóna ${z}: Max ${Math.max(...vals).toFixed(1)}°, Min ${Math.min(...vals).toFixed(1)}°, Átl: ${(vals.reduce((a,b)=>a+b,0)/vals.length).toFixed(1)}°\n`;
+    }
+  }
   
-  window.location.href = `mailto:${emails.join(',')}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+  let todayStr = new Date().toISOString().split('T');
+  let subject = dict[lang].mailSubject + todayStr;
+  let body = dict[lang].mailBody + "\n\n" + summary;
+  
+  let log = JSON.parse(localStorage.getItem(ALERT_LOG_KEY) || '[]');
+  if(log.length > 0) {
+    body += "\n\nRiasztások:\n" + log.join("\n");
+  }
+
+  let mailtoLink = `mailto:${emails.join(',')}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+  window.location.href = mailtoLink;
 }
 
+// --- ADATOK BETÖLTÉSE (KRITIKUS VÁLTOZÁS) ---
 function loadData() {
+  // 1. Betöltjük az állandó kulcsból
   let storedData = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
-  todayData = storedData.todayData || {};
+  
+  // 2. Ha van adat, akkor azt használjuk
+  if (storedData && storedData.todayData) {
+    todayData = storedData.todayData;
+  } else {
+    todayData = {};
+  }
+  
+  // 3. Betöltjük a küszöbértékeket
   thresholds = JSON.parse(localStorage.getItem('thresholds') || '{}');
+  
+  // 4. Betöltjük az e-mail címeket
   emails = JSON.parse(localStorage.getItem('emails') || '[]');
+  
+  // 5. Betöltjük a riasztásokat
   alertLog = JSON.parse(localStorage.getItem(ALERT_LOG_KEY) || '[]');
-  for(let z=1; z<=zones; z++) if(!thresholds[z]) thresholds[z] = {min: 18, max: 26};
+  
+  // 6. Alapértelmezett küszöbértékek beállítása, ha nincsenek
+  for(let z=1; z<=zones; z++) {
+    if(!thresholds[z]) thresholds[z] = {min: 18, max: 26};
+  }
 }
 
-window.onload = init;
+// --- INDÍTÁS ---
+window.onload = function() {
+  init();
+};
 </script>
 </body>
 </html>
+
