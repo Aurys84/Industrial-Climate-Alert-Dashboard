@@ -5,7 +5,7 @@
 ### 🌐 Webes verzió v2.0 - Kattints és indul
 👉 https://Aurys84.github.io/Industrial-Climate-Alert-Dashboard/
 
-### 💻 Régi Tkinter verzió v1.1.8
+### 💻Tkinter verzió v4.0
 Futtatás: `python main.py`
 Termuxhoz: lásd lejjebb
 
@@ -21,3 +21,24 @@ Termuxhoz: lásd lejjebb
 
 ## Hőségriadó
 megadott küszöbértékeknél riaszt
+As summer approaches, rising temperatures bring new operational challenges for many facilities. For those without automated digital monitoring, keeping track of climate data can become a stressful, manual burden. We’ve designed a solution to help businesses of any size regain control—no expensive IoT infrastructure required.
+
+Title: Industrial Climate Alert Dashboard v4.0 – Efficient Real-Time Monitoring for Facilities
+
+Description:
+In many industrial environments, the lack of expensive, complex IoT infrastructure often leaves temperature monitoring as a manual, time-consuming task. We’ve developed the Industrial Climate Alert Dashboard (v4.0) – a lightweight, web-based solution designed to bridge this gap.
+
+Key Features:
+* Real-Time Monitoring: Track climate data across multiple zones instantly.
+* Automated Alerting: Configurable min/max thresholds with automated email notifications for immediate corrective action.
+* Operational Intelligence: Built-in daily, weekly, and monthly statistics for better resource management.
+* Multilingual Support: Full interface localization in Hungarian, English, and German.
+* Unit Flexibility: Seamless switching between Celsius and Fahrenheit.
+* Seamless Integration: Fully browser-based, optimized for Outlook and other mail clients, ensuring zero setup time for end-users.
+
+This tool empowers small teams to maintain industrial standards with minimal overhead. Simple, efficient, and data-driven.
+
+Access the dashboard here:
+https://aurys84.github.io/Industrial-Climate-Alert-Dashboard/
+
+#IndustrialClimate #MonitoringSolutions #Efficiency #WebDev #ProcessAutomation #DataDriven #IIoT #SummerReady
