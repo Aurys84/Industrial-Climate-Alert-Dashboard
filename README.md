@@ -20,7 +20,7 @@ Termuxhoz: lásd lejjebb
 6. Adat mentés: automatikus, böngésző bezárása után is megmarad
 
 ## Hőségriadó
-megadott küszöbértékeknél riaszt
+Megadott küszöbértékeknél riaszt
 As summer approaches, rising temperatures bring new operational challenges for many facilities. For those without automated digital monitoring, keeping track of climate data can become a stressful, manual burden. We’ve designed a solution to help businesses of any size regain control—no expensive IoT infrastructure required.
 
 Title: Industrial Climate Alert Dashboard v4.0 – Efficient Real-Time Monitoring for Facilities
