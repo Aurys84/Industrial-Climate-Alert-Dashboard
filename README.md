@@ -1,3 +1,5 @@
+<img width="512" height="512" alt="icon-512" src="https://github.com/user-attachments/assets/9606b6b7-35e5-48ad-a4bb-6f1e01d8fa56" />
+
 # Industrial Climate Alert Dashboard
 
 ### 🌐 Webes verzió v2.0 - Kattints és indul
@@ -18,4 +20,4 @@ Termuxhoz: lásd lejjebb
 6. Adat mentés: automatikus, böngésző bezárása után is megmarad
 
 ## Hőségriadó
-40°C / 104°F felett a cella pirosra vált
+megadott küszöbértékeknél riaszt
