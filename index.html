@@ -149,12 +149,14 @@ let unit = "C";
 let todayData = {};
 let thresholds = {};
 let emails = [];
+let alertLog = []; // Explicit inicializálás
+
 const zones = 5;
 const hours = 24;
 
-// Állandó kulcsok az adatok tárolásához (nem a dátumtól függ)
+// EGYSÉGES, ÁLLANDÓ KULCSOK (NEM DÁTUM ALAPÚ)
 const STORAGE_KEY = 'climate_dashboard_data';
-const ALERT_LOG_KEY = 'climate_alert_log';
+const ALERT_LOG_KEY = 'climate_alert_log_v2';
 
 // --- INICIALIZÁLÁS ---
 function init() {
@@ -164,7 +166,8 @@ function init() {
   renderTable();
   renderEmails();
   updateStats();
-  changeLang(); // Nyelv beállítása
+  updateAlerts(); // Riasztások betöltése
+  changeLang(); 
 }
 
 // --- NYELVVÁLTÁS ---
@@ -186,6 +189,7 @@ function changeLang() {
   renderHeader();
   renderTable();
   updateStats();
+  updateAlerts();
 }
 
 // --- KÜSZÖBÉRTÉKEK ---
@@ -248,7 +252,7 @@ function saveCell(z, h, val) {
   if (!todayData[z]) todayData[z] = {};
   todayData[z] [h] = val;
   
-  // Mentés az állandó kulcs alá
+  // Azonnal mentés az ÁLLANDÓ kulcs alá
   localStorage.setItem(STORAGE_KEY, JSON.stringify({ todayData: todayData }));
   
   renderTable();
@@ -274,7 +278,7 @@ function switchUnit() {
   unit = unit === 'C' ? 'F' : 'C';
   document.getElementById('unitBtn').innerText = unit;
   
-  // Mentés az állandó kulcs alá
+  // Mentés
   localStorage.setItem(STORAGE_KEY, JSON.stringify({ todayData: todayData }));
   localStorage.setItem('thresholds', JSON.stringify(thresholds));
   
@@ -295,8 +299,12 @@ function saveDay() {
 function deleteToday() {
   if(confirm('Biztosan törlöd a mai adatot?')) {
     todayData = {};
-    localStorage.removeItem(STORAGE_KEY); // Az állandó kulcs törlése
-    localStorage.removeItem(ALERT_LOG_KEY); // A riasztási napló törlése
+    alertLog = []; // Töröljük a memóriában lévő logot is
+    
+    // TÖRÖLJEK A MINDKETTŐ ÁLLANDÓ KULCSOT
+    localStorage.removeItem(STORAGE_KEY);
+    localStorage.removeItem(ALERT_LOG_KEY);
+    
     renderTable();
     updateAlerts();
     updateStats();
@@ -349,11 +357,12 @@ function getAllVals(z, days) {
   return vals;
 }
 
-// --- RIASZTÁSOK ---
-let alertLog = [];
+// --- RIASZTÁSOK (JAVÍTVA) ---
 function checkAlert(z, h, val, type) {
   const t = dict[lang];
   let msg = `${t.zone} ${z} @ ${h}:00 - ${val}° (${type === 'MAX' ? t.alertMax : t.alertMin})`;
+  
+  // Csak akkor adjuk hozzá, ha még nincs benne
   if(!alertLog.includes(msg)) {
     alertLog.push(msg);
     localStorage.setItem(ALERT_LOG_KEY, JSON.stringify(alertLog));
@@ -362,24 +371,38 @@ function checkAlert(z, h, val, type) {
 
 function updateAlerts() {
   const t = dict[lang];
+  
+  // Betöltjük a logot az állandó kulcsról
   let log = JSON.parse(localStorage.getItem(ALERT_LOG_KEY) || '[]');
+  
+  // Frissítjük a globális változót
+  alertLog = log;
   
   // Ha van nap, de nincs log, nézzük át az aktuális adatokat
   if(log.length === 0 && Object.keys(todayData).length > 0) {
+    let newLog = [];
     for(let z=1; z<=zones; z++) {
       for(let h=0; h<hours; h++) {
         let val = todayData[z]?.[h];
         if(val) {
           let num = parseFloat(val);
           if(!isNaN(num)) {
-             if(num > thresholds[z].max) log.push(`${t.zone} ${z} @ ${h}:00 - ${num}° (${t.alertMax})`);
-             else if(num < thresholds[z].min) log.push(`${t.zone} ${z} @ ${h}:00 - ${num}° (${t.alertMin})`);
+             if(num > thresholds[z].max) newLog.push(`${t.zone} ${z} @ ${h}:00 - ${num}° (${t.alertMax})`);
+             else if(num < thresholds[z].min) newLog.push(`${t.zone} ${z} @ ${h}:00 - ${num}° (${t.alertMin})`);
           }
         }
       }
     }
-    localStorage.setItem(ALERT_LOG_KEY, JSON.stringify(log));
+    // Ha találtunk új riasztást, elmentjük
+    if(newLog.length > 0) {
+      localStorage.setItem(ALERT_LOG_KEY, JSON.stringify(newLog));
+      alertLog = newLog;
+      document.getElementById('alertLog').innerHTML = newLog.map(l => `<div>${l}</div>`).join('');
+      return;
+    }
   }
+  
+  // Megjelenítés
   document.getElementById('alertLog').innerHTML = log.map(l => `<div>${l}</div>`).join('');
 }
 
@@ -415,7 +438,6 @@ function sendManualEmail() {
     return;
   }
   
-  // Adatok összeszámolása
   let summary = "";
   for(let z=1; z<=zones; z++) {
     let vals = Object.values(todayData[z]||{}).map(Number).filter(v=>!isNaN(v));
@@ -428,29 +450,37 @@ function sendManualEmail() {
   let subject = dict[lang].mailSubject + todayStr;
   let body = dict[lang].mailBody + "\n\n" + summary;
   
-  // Ha van log
   let log = JSON.parse(localStorage.getItem(ALERT_LOG_KEY) || '[]');
   if(log.length > 0) {
     body += "\n\nRiasztások:\n" + log.join("\n");
   }
 
-  // Nyisd meg az e-mail klienst
   let mailtoLink = `mailto:${emails.join(',')}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
   window.location.href = mailtoLink;
 }
 
-// --- ADATOK BETÖLTÉSE ---
+// --- ADATOK BETÖLTÉSE (KRITIKUS VÁLTOZÁS) ---
 function loadData() {
-  // Az adatokat az állandó kulcs alatt olvassuk be
+  // 1. Betöltjük az állandó kulcsból
   let storedData = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
   
-  // Ha van adat, akkor azt használjuk, különben üres objektum
-  todayData = storedData.todayData || {};
+  // 2. Ha van adat, akkor azt használjuk
+  if (storedData && storedData.todayData) {
+    todayData = storedData.todayData;
+  } else {
+    todayData = {};
+  }
   
+  // 3. Betöltjük a küszöbértékeket
   thresholds = JSON.parse(localStorage.getItem('thresholds') || '{}');
+  
+  // 4. Betöltjük az e-mail címeket
   emails = JSON.parse(localStorage.getItem('emails') || '[]');
   
-  // Ha nincs thresholds, legyen alapértelmezett
+  // 5. Betöltjük a riasztásokat
+  alertLog = JSON.parse(localStorage.getItem(ALERT_LOG_KEY) || '[]');
+  
+  // 6. Alapértelmezett küszöbértékek beállítása, ha nincsenek
   for(let z=1; z<=zones; z++) {
     if(!thresholds[z]) thresholds[z] = {min: 18, max: 26};
   }
@@ -459,7 +489,6 @@ function loadData() {
 // --- INDÍTÁS ---
 window.onload = function() {
   init();
-  updateAlerts();
 };
 </script>
 </body>
